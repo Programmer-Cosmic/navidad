@@ -2,32 +2,21 @@ import streamlit as st
 import random
 import time
 
-st.set_page_config(
-    page_title="Feliz Navidad 2025",
-    page_icon="🎄",
-    layout="centered"
-)
+st.set_page_config(page_title="Feliz Navidad 2025", page_icon="🎄", layout="centered")
 
 NOMBRE = "Alejandro Luque"
 
-# =========================
-# FONDO ANIMADO CON NIEVE
-# =========================
+# ========= FONDO NIEVE + ESTILO =========
 st.markdown("""
 <style>
-/* Fondo */
 body {
     background: linear-gradient(to bottom, #0b1d3a, #020409);
     overflow: hidden;
 }
-
-/* Capa de nieve */
 .snow {
     position: fixed;
-    top: -10px;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: -10px; left: 0;
+    width: 100%; height: 100%;
     pointer-events: none;
     background-image:
         radial-gradient(white 1px, transparent 1px),
@@ -38,76 +27,98 @@ body {
     opacity: 0.8;
     z-index: 0;
 }
-
 @keyframes snow {
     0% { background-position: 0 0, 0 0, 0 0; }
     100% { background-position: 0 1000px, 0 800px, 0 600px; }
 }
 
-/* Contenedor principal */
+/* Card */
 .card {
     position: relative;
     z-index: 1;
     background: rgba(0, 0, 0, 0.65);
     border-radius: 20px;
-    padding: 25px;
-    box-shadow: 0 0 40px rgba(255,255,255,0.15);
+    padding: 22px;
+    box-shadow: 0 0 40px rgba(255,255,255,0.12);
     text-align: center;
 }
 
-.tree {
-    font-family: monospace;
-    white-space: pre;
-    line-height: 1.1;
-    font-size: 18px;
+/* Contenedor del árbol: centrado como bloque */
+.tree-wrap {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+/* Code block: fuerza monospace estable */
+pre code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-variant-ligatures: none !important;
+    letter-spacing: 0px !important;
+    line-height: 1.05 !important;
+    font-size: 16px !important;
+}
+
+/* Para que el code block no quede enorme de ancho */
+div[data-testid="stCodeBlock"] {
+    max-width: 100%;
 }
 </style>
 
 <div class="snow"></div>
 """, unsafe_allow_html=True)
 
-# =========================
-# ÁRBOL CON LUCES
-# =========================
-LIGHTS = ["🔴", "🟡", "🟢", "🔵", "🟣"]
+# ========= GENERADOR DE ÁRBOL (sin “drift”) =========
+LIGHTS = ["🔴", "🟡", "🟢", "🔵", "🟣", "🟠"]
 
-def arbol_navidad(altura=14):
-    lineas = []
-    lineas.append(" " * altura + "⭐")
+def arbol_navidad(altura=14, densidad=0.25):
+    lines = []
+    # estrella centrada (usamos padding fijo)
+    lines.append(" " * (altura + 1) + "⭐")
+
     for i in range(altura):
-        ancho = 1 + i * 2
-        relleno = " " * (altura - i)
-        fila = ""
-        for _ in range(ancho):
-            fila += random.choice(LIGHTS) if random.random() < 0.25 else "🌲"
-        lineas.append(relleno + fila)
-    tronco = " " * altura + "🟫🟫🟫"
-    lineas.append(tronco)
-    lineas.append(tronco)
-    return "\n".join(lineas)
+        width = 1 + 2 * i
+        left_pad = altura - i
 
-# =========================
-# CONTENIDO
-# =========================
+        row = []
+        for _ in range(width):
+            row.append(random.choice(LIGHTS) if random.random() < densidad else "🌲")
+
+        lines.append((" " * left_pad) + "".join(row))
+
+    trunk_pad = " " * (altura)
+    lines.append(trunk_pad + "🟫🟫🟫")
+    lines.append(trunk_pad + "🟫🟫🟫")
+    return "\n".join(lines)
+
+# ========= UI =========
 st.markdown('<div class="card">', unsafe_allow_html=True)
-
 st.markdown("## 🎄 Feliz Navidad 2025 🎄")
 st.markdown(f"### ✨ Les desea **{NOMBRE}** ✨")
 st.markdown("Que esta noche esté llena de paz, amor y buenos momentos. 🎁")
 
-arbol_container = st.empty()
+tree_box = st.empty()
 
-if st.toggle("Animar luces ✨", value=True):
-    while True:
-        arbol_container.markdown(
-            f'<div class="tree">{arbol_navidad()}</div>',
-            unsafe_allow_html=True
-        )
-        time.sleep(0.5)
-else:
-    arbol_container.markdown(
-        f'<div class="tree">{arbol_navidad()}</div>',
-        unsafe_allow_html=True
-    )
+auto = st.toggle("Animar luces ✨", value=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+# ========= RENDER =========
+def render_tree(text: str):
+    st.markdown('<div class="tree-wrap">', unsafe_allow_html=True)
+    st.code(text)  # st.code suele respetar mejor monospace en móviles
+    st.markdown("</div>", unsafe_allow_html=True)
+
+if auto:
+    while True:
+        tree_box.empty()
+        with tree_box.container():
+            render_tree(arbol_navidad(altura=14, densidad=0.27))
+        time.sleep(0.45)
+else:
+    with tree_box.container():
+        render_tree(arbol_navidad(altura=14, densidad=0.27))
+    if st.button("Cambiar luces ✨"):
+        tree_box.empty()
+        with tree_box.container():
+            render_tree(arbol_navidad(altura=14, densidad=0.27))
