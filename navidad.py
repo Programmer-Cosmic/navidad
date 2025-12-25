@@ -1,21 +1,20 @@
 import streamlit as st
 import random
 import time
+import math
+
+from PIL import Image, ImageDraw
 
 st.set_page_config(page_title="Feliz Navidad 2025", page_icon="🎄", layout="centered")
 
 NOMBRE = "Alejandro Luque"
 
-# ========= FONDO NIEVE + ESTILO =========
+# ========= FONDO NIEVE (CSS) =========
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(to bottom, #0b1d3a, #020409);
-    overflow: hidden;
-}
+body { background: linear-gradient(to bottom, #0b1d3a, #020409); overflow: hidden; }
 .snow {
-    position: fixed;
-    top: -10px; left: 0;
+    position: fixed; top: -10px; left: 0;
     width: 100%; height: 100%;
     pointer-events: none;
     background-image:
@@ -23,102 +22,131 @@ body {
         radial-gradient(white 1.5px, transparent 1.5px),
         radial-gradient(white 2px, transparent 2px);
     background-size: 60px 60px, 120px 120px, 200px 200px;
-    animation: snow 20s linear infinite;
-    opacity: 0.8;
+    animation: snow 18s linear infinite;
+    opacity: 0.85;
     z-index: 0;
 }
 @keyframes snow {
-    0% { background-position: 0 0, 0 0, 0 0; }
-    100% { background-position: 0 1000px, 0 800px, 0 600px; }
+    0%   { background-position: 0 0,   0 0,   0 0; }
+    100% { background-position: 0 900px, 0 700px, 0 500px; }
 }
-
-/* Card */
 .card {
-    position: relative;
-    z-index: 1;
-    background: rgba(0, 0, 0, 0.65);
-    border-radius: 20px;
-    padding: 22px;
+    position: relative; z-index: 1;
+    background: rgba(0,0,0,0.65);
+    border-radius: 18px;
+    padding: 18px;
     box-shadow: 0 0 40px rgba(255,255,255,0.12);
     text-align: center;
 }
-
-/* Contenedor del árbol: centrado como bloque */
-.tree-wrap {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
-}
-
-/* Code block: fuerza monospace estable */
-pre code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-    font-variant-ligatures: none !important;
-    letter-spacing: 0px !important;
-    line-height: 1.05 !important;
-    font-size: 16px !important;
-}
-
-/* Para que el code block no quede enorme de ancho */
-div[data-testid="stCodeBlock"] {
-    max-width: 100%;
-}
 </style>
-
 <div class="snow"></div>
 """, unsafe_allow_html=True)
 
-# ========= GENERADOR DE ÁRBOL (sin “drift”) =========
-LIGHTS = ["🔴", "🟡", "🟢", "🔵", "🟣", "🟠"]
+# ========= DIBUJO DEL ÁRBOL (IMAGEN) =========
+def draw_tree_png(
+    w=900, h=600,
+    layers=12,
+    seed=None,
+    twinkle=False
+):
+    if seed is not None:
+        random.seed(seed)
 
-def arbol_navidad(altura=14, densidad=0.25):
-    lines = []
-    # estrella centrada (usamos padding fijo)
-    lines.append(" " * (altura + 1) + "⭐")
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
 
-    for i in range(altura):
-        width = 1 + 2 * i
-        left_pad = altura - i
+    # Centro del árbol
+    cx = w // 2
+    top_y = 70
+    base_y = h - 120
 
-        row = []
-        for _ in range(width):
-            row.append(random.choice(LIGHTS) if random.random() < densidad else "🌲")
+    # Estrella
+    star_r = 18
+    d.ellipse((cx-star_r, top_y-star_r, cx+star_r, top_y+star_r), fill=(255, 220, 80, 255))
+    d.ellipse((cx-7, top_y-7, cx+7, top_y+7), fill=(255, 245, 180, 255))
 
-        lines.append((" " * left_pad) + "".join(row))
+    # Colores
+    green1 = (20, 140, 70, 255)
+    green2 = (18, 110, 60, 255)
+    trunk = (120, 80, 45, 255)
 
-    trunk_pad = " " * (altura)
-    lines.append(trunk_pad + "🟫🟫🟫")
-    lines.append(trunk_pad + "🟫🟫🟫")
-    return "\n".join(lines)
+    lights = [
+        (255, 60, 60, 255),   # rojo
+        (255, 220, 60, 255),  # amarillo
+        (80, 220, 120, 255),  # verde
+        (80, 160, 255, 255),  # azul
+        (200, 120, 255, 255), # violeta
+        (255, 160, 60, 255),  # naranja
+    ]
+
+    # Árbol (triángulo por capas)
+    for i in range(layers):
+        t = i / (layers - 1)  # 0..1
+        y = int(top_y + 35 + t * (base_y - (top_y + 35)))
+        half = int(40 + t * 280)  # ancho creciente
+        # capa verde
+        d.polygon(
+            [(cx - half, y), (cx + half, y), (cx, y - 55)],
+            fill=green1 if i % 2 == 0 else green2
+        )
+
+        # Luces sobre la capa
+        n_lights = int(4 + t * 12)
+        for _ in range(n_lights):
+            lx = random.randint(cx - half + 20, cx + half - 20)
+            ly = random.randint(y - 45, y - 5)
+
+            # efecto titilar: cambia brillo al azar
+            col = random.choice(lights)
+            if twinkle and random.random() < 0.45:
+                col = (min(col[0] + 40, 255), min(col[1] + 40, 255), min(col[2] + 40, 255), 255)
+
+            r = random.randint(6, 10)
+            d.ellipse((lx-r, ly-r, lx+r, ly+r), fill=col)
+
+            # brillo suave
+            glow_r = r + 6
+            glow = (col[0], col[1], col[2], 50)
+            d.ellipse((lx-glow_r, ly-glow_r, lx+glow_r, ly+glow_r), fill=glow)
+
+    # Tronco
+    tw, th = 110, 90
+    d.rounded_rectangle(
+        (cx - tw//2, base_y + 10, cx + tw//2, base_y + 10 + th),
+        radius=18, fill=trunk
+    )
+
+    # Suelo nieve leve
+    d.ellipse((cx-340, base_y+70, cx+340, base_y+170), fill=(255, 255, 255, 30))
+
+    return img
 
 # ========= UI =========
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.markdown("## 🎄 Feliz Navidad 2025 🎄")
 st.markdown(f"### ✨ Les desea **{NOMBRE}** ✨")
 st.markdown("Que esta noche esté llena de paz, amor y buenos momentos. 🎁")
-
-tree_box = st.empty()
-
-auto = st.toggle("Animar luces ✨", value=True)
-
 st.markdown("</div>", unsafe_allow_html=True)
 
-# ========= RENDER =========
-def render_tree(text: str):
-    st.markdown('<div class="tree-wrap">', unsafe_allow_html=True)
-    st.code(text)  # st.code suele respetar mejor monospace en móviles
-    st.markdown("</div>", unsafe_allow_html=True)
+col1, col2 = st.columns(2)
+with col1:
+    speed = st.select_slider("Velocidad luces", options=[0.2, 0.35, 0.5, 0.7, 1.0], value=0.35)
+with col2:
+    auto = st.toggle("Animar luces ✨", value=True)
+
+img_box = st.empty()
 
 if auto:
+    k = 0
     while True:
-        tree_box.empty()
-        with tree_box.container():
-            render_tree(arbol_navidad(altura=14, densidad=0.27))
-        time.sleep(0.45)
+        # seed cambia en cada frame para que titilen distinto
+        img = draw_tree_png(seed=1000 + k, twinkle=True)
+        img_box.image(img, use_container_width=True)
+        time.sleep(speed)
+        k += 1
 else:
-    with tree_box.container():
-        render_tree(arbol_navidad(altura=14, densidad=0.27))
+    img = draw_tree_png(seed=123, twinkle=False)
+    img_box.image(img, use_container_width=True)
     if st.button("Cambiar luces ✨"):
-        tree_box.empty()
-        with tree_box.container():
-            render_tree(arbol_navidad(altura=14, densidad=0.27))
+        img = draw_tree_png(seed=random.randint(1, 99999), twinkle=True)
+        img_box.image(img, use_container_width=True)
