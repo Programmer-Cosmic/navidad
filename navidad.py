@@ -125,7 +125,7 @@ def draw_tree_png(
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.markdown("## 🎄 Feliz Navidad 2025 🎄")
 st.markdown(f"### ✨ Les desea **{NOMBRE}** ✨")
-st.markdown("Que esta noche esté llena de paz, amor y buenos momentos. 🎁")
+st.markdown("Que este Dia esté lleno de paz, amor y buenos momentos. 🎁")
 st.markdown("</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
